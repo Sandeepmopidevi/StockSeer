@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>StockSeer - Smart Investment Predictor</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background: #f8f9fa;
+    }
+
+    input, button {
+      padding: 10px;
+      width: 320px;
+      margin: 10px;
+      font-size: 16px;
+    }
+
+    button {
+      cursor: pointer;
+      background-color: #007bff;
+      color: white;
+      border: none;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    #result {
+      margin-top: 20px;
+      background: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+    }
+
+    #spinnerOverlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255,255,255,0.8);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      z-index: 999;
+    }
+
+    #loadingSpinner {
+      border: 6px solid #f3f3f3;
+      border-top: 6px solid #007bff;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      animation: spin 1s linear infinite;
+      margin-bottom: 15px;
+    }
+
+    #loadingFact {
+      font-size: 16px;
+      color: #333;
+      text-align: center;
+      max-width: 80%;
+      animation: fade 1s ease-in-out infinite alternate;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @keyframes fade {
+      from { opacity: 0.6; }
+      to { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <h2>StockSeer - Smart Investment Predictor</h2>
+
+  <input id="tickerInput" placeholder="Type company name" list="tickers" oninput="searchStock()" />
+  <datalist id="tickers"></datalist>
+  <button onclick="getPrediction()">Predict</button>
+
+  <div id="spinnerOverlay">
+    <div id="loadingSpinner"></div>
+    <div id="loadingFact">Loading...</div>
+  </div>
+
+  <div id="result"></div>
+
+  <script src="tickers.js"></script>
+  <script>
+    const facts = [
+      "The stock market dates back to the 1600s.",
+      "Apple was the first company to hit $3 trillion in market cap.",
+      "Most stock trades in the U.S. are done electronically.",
+      "The best-performing stock of all time is Coca-Cola.",
+      "October is historically the most volatile month for stocks.",
+      "Diversifying reduces investment risk.",
+      "Stock prices are influenced by news and earnings reports.",
+      "Warren Buffett bought his first stock at age 11.",
+      "The 'ticker' symbol was invented in 1867.",
+      "Market open and close times are crucial for volume."
+    ];
+
+    function showRandomFact() {
+      const fact = facts[Math.floor(Math.random() * facts.length)];
+      document.getElementById("loadingFact").textContent = fact;
+    }
+
+    function searchStock() {
+      const input = document.getElementById("tickerInput").value.toLowerCase();
+      const datalist = document.getElementById("tickers");
+      datalist.innerHTML = "";
+
+      Object.keys(tickerMap)
+        .filter(name => name.toLowerCase().includes(input))
+        .forEach(name => {
+          const option = document.createElement("option");
+          option.value = name;
+          datalist.appendChild(option);
+        });
+    }
+
+    async function getPrediction() {
+      const fullName = document.getElementById("tickerInput").value;
+      const ticker = tickerMap[fullName];
+
+      if (!ticker) {
+        document.getElementById("result").innerHTML = "<p style='color:red;'>Invalid company name.</p>";
+        return;
+      }
+
+      showRandomFact();
+      document.getElementById("spinnerOverlay").style.display = "flex";
+      document.getElementById("result").innerHTML = "";
+
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 40000);
+
+        const res = await fetch(`http://127.0.0.1:5000/predict?ticker=${ticker}`, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        const data = await res.json();
+
+        if (data.error) {
+          document.getElementById("result").innerHTML = `<p style="color:red;">Error: ${data.error}</p>`;
+        } else {
+          const predictionList = data.prediction.map(p => parseFloat(p).toFixed(2)).join(", ");
+          document.getElementById("result").innerHTML = `
+            <h4>Prediction for: ${fullName} (${data.ticker})</h4>
+            <p><b>52 Week High:</b> ${data.high_52week}</p>
+            <p><b>52 Week Low:</b> ${data.low_52week}</p>
+            <p>Predicted Price: <b>${data.latest_predicted_price.toFixed(2)}</b></p>
+            <p>Model RMSE: ${data.rmse.toFixed(2)}</p>
+            <p>Investment Advice: <b>${data.suggestion}</b></p>
+            <p>Next 10 predicted prices: ${predictionList}</p>
+          `;
+        }
+      } catch (err) {
+        document.getElementById("result").innerHTML = "<p style='color:red;'>Failed to fetch prediction. Please try again.</p>";
+      } finally {
+        document.getElementById("spinnerOverlay").style.display = "none";
+      }
+    }
+  </script>
+</body>
+</html>
