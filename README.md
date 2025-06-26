@@ -112,7 +112,7 @@ The app will show:
 
 ## 📝 License
 
-MIT License
+[MIT License](https://github.com/Sandeepmopidevi/StockSeer/blob/main/LICENSE)
 ---
 
 ## 👤 Author
